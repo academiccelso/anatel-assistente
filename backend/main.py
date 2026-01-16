@@ -1,15 +1,21 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from langchain_community.vectorstores import FAISS
-from langchain_openai import OpenAIEmbeddings, ChatOpenAI
-from langchain.chains import RetrievalQA
-from langchain.prompts import PromptTemplate
+import faiss
+import numpy as np
+import json
 import os
 from dotenv import load_dotenv
+import openai
+from langchain.chains import RetrievalQA
+from langchain.prompts import PromptTemplate
+from langchain.llms import OpenAI
 
 # Carregar variáveis de ambiente
 load_dotenv()
+
+# Cliente OpenAI
+client = openai.OpenAI()
 
 app = FastAPI()
 
@@ -22,14 +28,38 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Carregar vetor store
+# Carregar índice FAISS e dados
 data_dir = os.path.join(os.path.dirname(__file__), '..', 'data')
-vectorstore_path = os.path.join(data_dir, 'faiss_index')
-embeddings = OpenAIEmbeddings()
-vectorstore = FAISS.load_local(vectorstore_path, embeddings, allow_dangerous_deserialization=True)
+index_path = os.path.join(data_dir, 'faiss_index.idx')
+texts_path = os.path.join(data_dir, 'texts.json')
+metadatas_path = os.path.join(data_dir, 'metadatas.json')
+
+index = faiss.read_index(index_path)
+with open(texts_path, 'r') as f:
+    texts = json.load(f)
+with open(metadatas_path, 'r') as f:
+    metadatas = json.load(f)
 
 # Modelo de linguagem
-llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0)
+llm = OpenAI(model_name="gpt-3.5-turbo", temperature=0)
+
+# Função para buscar contexto
+def search_context(question, k=5):
+    # Gerar embedding da pergunta
+    response = client.embeddings.create(input=question, model="text-embedding-ada-002")
+    query_emb = np.array([response.data[0].embedding])
+    
+    # Buscar no índice
+    D, I = index.search(query_emb, k)
+    
+    # Recuperar textos e metadatas
+    contexts = []
+    for i in I[0]:
+        context = texts[i]
+        metadata = metadatas[i]
+        contexts.append(f"Documento: {metadata['source']}, Artigo: {metadata.get('article', 'N/A')}\n{context}")
+    
+    return "\n\n".join(contexts)
 
 # Prompt de sistema
 system_prompt = """
@@ -60,8 +90,10 @@ class Question(BaseModel):
 @app.post("/ask")
 async def ask_question(q: Question):
     try:
-        result = qa_chain.run(q.question)
-        return {"answer": result}
+        context = search_context(q.question)
+        prompt = PROMPT.format(context=context, question=q.question)
+        response = llm(prompt)
+        return {"answer": response}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

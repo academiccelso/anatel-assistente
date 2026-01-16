@@ -2,13 +2,18 @@ import os
 import re
 from PyPDF2 import PdfReader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.vectorstores import FAISS
-from langchain_openai import OpenAIEmbeddings
 from langchain.docstore.document import Document
 from dotenv import load_dotenv
+import openai
+import numpy as np
+import faiss
+import json
 
 # Carregar variáveis de ambiente
 load_dotenv()
+
+# Cliente OpenAI
+client = openai.OpenAI()
 
 # Função para extrair texto do PDF
 def extract_text_from_pdf(pdf_path):
@@ -67,11 +72,29 @@ txt_docs = split_text_with_metadata(txt_text, "Resolução Anatel nº 765/2023")
 
 all_docs = pdf_docs + txt_docs
 
-# Criar embeddings e vetor store
-embeddings = OpenAIEmbeddings()
-vectorstore = FAISS.from_documents(all_docs, embeddings)
+# Extrair textos e metadatas
+texts = [doc.page_content for doc in all_docs]
+metadatas = [doc.metadata for doc in all_docs]
 
-# Salvar o vetor store
-vectorstore.save_local(os.path.join(data_dir, 'faiss_index'))
+# Gerar embeddings
+embeddings_list = []
+for text in texts:
+    response = client.embeddings.create(input=text, model="text-embedding-ada-002")
+    embeddings_list.append(response.data[0].embedding)
+
+embeddings_np = np.array(embeddings_list)
+
+# Criar índice FAISS
+index = faiss.IndexFlatL2(1536)  # Dimensão do ada-002
+index.add(embeddings_np)
+
+# Salvar índice
+faiss.write_index(index, os.path.join(data_dir, 'faiss_index.idx'))
+
+# Salvar textos e metadatas
+with open(os.path.join(data_dir, 'texts.json'), 'w') as f:
+    json.dump(texts, f)
+with open(os.path.join(data_dir, 'metadatas.json'), 'w') as f:
+    json.dump(metadatas, f)
 
 print("Indexação concluída!")
