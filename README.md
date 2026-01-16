@@ -15,7 +15,16 @@ Este é um aplicativo web simples que responde dúvidas de consumidores de telec
    pip install -r requirements.txt
    ```
 
-2. Configure a variável de ambiente OPENAI_API_KEY com sua chave da OpenAI.
+2. Configure a chave da OpenAI:
+   - Copie `.env.example` para `.env`.
+   - Adicione sua chave da OpenAI no arquivo `.env`:
+     ```
+     OPENAI_API_KEY=sk-your-actual-key-here
+     ```
+   - Alternativamente, defina a variável de ambiente no terminal:
+     ```
+     export OPENAI_API_KEY=sk-your-actual-key-here
+     ```
 
 3. Execute o script de indexação:
    ```
