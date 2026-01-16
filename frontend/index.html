@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Assistente da Anatel</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        textarea {
+            width: 100%;
+            height: 100px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            resize: vertical;
+        }
+        button {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #response {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #e9ecef;
+            border-radius: 4px;
+            white-space: pre-wrap;
+        }
+        .warning {
+            background-color: #fff3cd;
+            color: #856404;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Assistente da Anatel</h1>
+    <div class="container">
+        <div class="warning">
+            <strong>Aviso:</strong> Este assistente é apenas informativo e não substitui os canais oficiais da Anatel.
+        </div>
+        <form id="questionForm">
+            <label for="question">Digite sua pergunta:</label>
+            <textarea id="question" name="question" placeholder="Ex: Quais são meus direitos como consumidor de telecomunicações?"></textarea>
+            <button type="submit">Perguntar</button>
+        </form>
+        <div id="response"></div>
+    </div>
+
+    <script>
+        document.getElementById('questionForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const question = document.getElementById('question').value;
+            const responseDiv = document.getElementById('response');
+            responseDiv.textContent = 'Processando...';
+
+            try {
+                const res = await fetch('http://localhost:8000/ask', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ question })
+                });
+                const data = await res.json();
+                responseDiv.textContent = data.answer;
+            } catch (error) {
+                responseDiv.textContent = 'Erro ao processar a pergunta. Tente novamente.';
+            }
+        });
+    </script>
+</body>
+</html>
