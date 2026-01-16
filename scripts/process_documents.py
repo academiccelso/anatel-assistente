@@ -29,6 +29,7 @@ def split_text_with_metadata(text, source, chunk_size=1000, chunk_overlap=200):
     articles = re.split(r'(Art\. \d+)', text)
     documents = []
     current_article = ""
+    prev_article = "Introdução"  # Inicializar
     for i, part in enumerate(articles):
         if re.match(r'Art\. \d+', part):
             if current_article:
